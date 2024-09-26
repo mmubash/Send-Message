@@ -1,8 +1,9 @@
 import 'dart:convert';
+
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+
 import 'package:flutter/material.dart';
 
-import 'dbMessages.dart';
 import 'package:http/http.dart' as http;
 import 'message.dart';
 
@@ -27,22 +28,28 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     socket = IO.io('ws://192.168.2.189:3001', IO.OptionBuilder()
-        .setTransports(['websocket'])
+        .setTransports(['websocket']).enableAutoConnect()
         .build());
-
-    socket.connect();
-
     socket.onConnect((_) {
-
       socket.emit('getConversation', {
         'senderId': widget.senderId,
         'receiverId': widget.receiverId,
       });
-      _getMessagesFunc();
+    });
+
+    _events();
+    _fetchPreviousMessages();
+  }
+  void _events(){
+
+    socket.on('newMessage', (data) {
+      print("********uytjky********${data['_doc']}*********************");
+      setState(() {
+        _messages.add(data['_doc']);
+      });
     });
     socket.onConnectError((data) => print("Connection Error: $data"));
     socket.onDisconnect((_) => print("Disconnected"));
-    _fetchPreviousMessages();
   }
   Future<void> _fetchPreviousMessages() async {
     try {
@@ -54,7 +61,6 @@ class _ChatScreenState extends State<ChatScreen> {
             .map((json) => MessageModel.fromJson(json))
             .toList();
         List<Map<String, dynamic>> messagesAsMaps = messages.map((message) => message.toJson()).toList();
-
         setState(() {
           _messages.addAll(messagesAsMaps);
         });
@@ -66,29 +72,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
- void _getMessagesFunc(){
-   socket.emit('getMessages', widget.conversationId.toString());
-   print('Connected to the server');
-   socket.on('getMessage', (data) async {
-     print('##########');
-     print('%%%%%%%%%%%%%%%%% %%%%%$data');
-     MessageModel message = MessageModel(
-       senderId: data['senderId'],
-       receiverId: data['receiverId'],
-       text: data['text'],
-       conversationId: data['conversationId'],
-       type: data['type'],
-       status: data['status'],
-       createdAt: DateTime.now().toIso8601String(),
-       updatedAt: DateTime.now().toIso8601String(),
-       iV: 0,
-     );
-     // Update the UI
-     setState(() {
-       _messages.add(message.toJson()); // Add the message to the list as JSON
-     });
-   });
- }
 
   void _sendMessage() async {
     if (_controller.text.isNotEmpty) {
@@ -99,15 +82,9 @@ class _ChatScreenState extends State<ChatScreen> {
         text: message,
         conversationId: widget.conversationId,
         type: 'text',
-        status: 'sent',
-        createdAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
-        iV: 0,
       );
       socket.emit('sendMessage', newMessage.toJson());
-      setState(() {
-        _messages.add(newMessage.toJson());
-      });
+
 
       _controller.clear();
     }
@@ -120,47 +97,6 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Widget _buildMessage(String text, bool isSentByUser, String senderId, String receiverId,String conversationId) {
-    isSentByUser = senderId == widget.senderId;
-    return Align(
-      alignment: isSentByUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-        decoration: BoxDecoration(
-          color: isSentByUser ? Colors.blue : Colors.grey[300],
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          crossAxisAlignment: isSentByUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            // Text(
-            //   username,
-            //   style: TextStyle(
-            //     fontWeight: FontWeight.bold,
-            //     fontSize: 14,
-            //     color: isSentByUser ? Colors.white : Colors.black87,
-            //   ),
-            // ),
-            SizedBox(height: 5),
-            Text(
-              text,
-              style: TextStyle(
-                color: isSentByUser ? Colors.white : Colors.black87,
-              ),
-            ),
-            // Text(
-            //   timestamp,
-            //   style: TextStyle(
-            //     color: isSentByUser ? Colors.white : Colors.black87,
-            //   ),
-            // ),
-            SizedBox(height: 5),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,14 +113,8 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[_messages.length - 1 - index];
-                return _buildMessage(
-                    message['text'],
-                    // message['username'],
-                    message['isSentByUser']??false,
-                    message['senderId'],
-                    message['receiverId'],
-                    message['conversationId']
-                  // message['timestamp'],
+                return ListTile(
+                    title: Text(message['text']),
                 );
               },
             ),

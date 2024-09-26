@@ -54,6 +54,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       } else {
         print("Unexpected data format. Expected a Map.");
       }
+      socket.emit("joinConversation",conversationId);
     });
   }
 

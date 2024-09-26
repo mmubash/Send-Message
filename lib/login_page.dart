@@ -7,7 +7,6 @@ import 'package:send_message/roomListScreen.dart';
 import 'package:send_message/signUp_page.dart';
 class LoginPage extends StatefulWidget {
   LoginPage({super.key});
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -42,6 +41,7 @@ class _LoginPageState extends State<LoginPage> {
             .build());
         socket.connect();
         socket.onConnect((_) {
+          socket.emit("userOnline",userId);
           print('Connected to the server');
         });
         print("Loggedd innnnn");
