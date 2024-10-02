@@ -5,6 +5,7 @@ class MessageModel {
   String? text;
   String? type;
 
+
   MessageModel(
       {
         this.conversationId,
@@ -15,7 +16,6 @@ class MessageModel {
         });
 
   MessageModel.fromJson(Map<String, dynamic> json) {
-    print("This is Json *****${json}");
     this.conversationId = json['conversationId'];
     this.senderId = json['senderId'];
     this.receiverId = json['receiverId'];
@@ -23,6 +23,7 @@ class MessageModel {
     this.type = json['type'];
 
   }
+
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();

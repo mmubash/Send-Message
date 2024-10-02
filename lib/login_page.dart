@@ -41,7 +41,6 @@ class _LoginPageState extends State<LoginPage> {
             .build());
         socket.connect();
         socket.onConnect((_) {
-          socket.emit("userOnline",userId);
           print('Connected to the server');
         });
         print("Loggedd innnnn");

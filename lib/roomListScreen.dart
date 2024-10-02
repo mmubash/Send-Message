@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart'as http;
+import 'package:http/http.dart';
+import 'package:http/http.dart';
 import 'package:send_message/usersModel.dart';
 import 'chat_screen.dart';
 import 'dbMessages.dart';
@@ -9,6 +12,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 class RoomListScreen extends StatefulWidget {
   final String currentUserId;
   final String currentUserName;
+
 
   RoomListScreen({required this.currentUserId, required this.currentUserName});
 
@@ -20,7 +24,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
   late IO.Socket socket;
   List<GetUsers> users = [];
   String? conversationId;
-  late GetUsers selectedUser;
+  GetUsers selectedUser=GetUsers();
+  bool isConversationRequested = false;
 
   @override
   void initState() {
@@ -32,8 +37,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
     socket.connect();
 
     socket.onConnect((_) {
-      print('Connected to the server');
+      print('Connected to the server(RoomListScreen)');
       socket.emit('getAllUsers');
+      socket.emit("userOnline",widget.currentUserId);
+      socket.on("updateUserStatus",(data){
+      });
     });
 
     socket.on('getAllUsers', (data) {
@@ -45,16 +53,22 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
     socket.on('receiveConversation', (data) {
       print("********Received data from receiveConversation:********* $data");
-      if (data is Map && data.containsKey('_id')) {
-        setState(() {
-          conversationId = data['_id'];
-        });
-        print("Conversation ID: $conversationId");
-        navigateToChatScreen();  // Only navigate if there's a valid conversation ID
-      } else {
-        print("Unexpected data format. Expected a Map.");
+      List  members = data['members'];
+      if(members.contains(widget.currentUserId)){
+        if (data is Map && data.containsKey('_id')) {
+          setState(() {
+            conversationId = data['_id'];
+          });
+          // print("Conversation ID: $conversationId");
+
+        } else {
+          print("Unexpected data format. Expected a Map.");
+        }
+        socket.emit("joinConversation",conversationId);
+          // room(widget.currentUserId,selectedUser.sId);
+
+
       }
-      socket.emit("joinConversation",conversationId);
     });
   }
 
@@ -74,9 +88,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
     print("Get conversation emitted: senderId: $senderId, receiverId: $receiverId");
   }
 
-  void navigateToChatScreen() {
+  void navigateToChatScreen(String conversationId) {
     print('Navigating to ChatScreen with conversationId: $conversationId');
-    if (conversationId != null) {
+    // if (conversationId != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -84,18 +98,42 @@ class _RoomListScreenState extends State<RoomListScreen> {
             username: selectedUser.name ?? "unknown",
             senderId: widget.currentUserId,
             receiverId: selectedUser.sId ?? "null",
-            conversationId: conversationId!,
+            conversationId: conversationId,
           ),
         ),
       ).then((_) {
-
         setState(() {
           selectedUser = GetUsers();
-          conversationId = null;
+          isConversationRequested = false;
         });
       });
-    } else {
-      print('Error: Conversation ID is null');
+    // } else {
+    //   print('Error: Conversation ID is null');
+    // }
+  }
+  void room(String senderId,String? receiverId) async {
+    try {
+      http.Response response = await http.post(
+        Uri.parse("http://192.168.2.189:3001/api/conversation/get"),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body:json.encode( {
+          "senderId":senderId,
+          "receiverId":receiverId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        print(response.body);
+        var data = jsonDecode(response.body);
+        String conversationId = data['_id'];
+        print("Got ConversationId ${conversationId}");
+        navigateToChatScreen(conversationId);
+      } else {
+        print('Failed to log in: ${response}');
+      }
+    } catch (e) {
+      print("This is Error: ${e.toString()}");
     }
   }
 
@@ -120,7 +158,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
             onTap: () {
               selectedUser = user;
               newConversation(widget.currentUserId, user.sId.toString());
-              getConversation(widget.currentUserId, user.sId.toString());
+              room(widget.currentUserId,user.sId);
             },
           );
         },
