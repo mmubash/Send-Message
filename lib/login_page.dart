@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       var body = jsonEncode({'email': email, 'password': password});
       http.Response response = await http.post(
-        Uri.parse("http://192.168.2.189:3001/api/user/login"),
+        Uri.parse("http://192.168.43.100:3001/api/user/login"),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -32,11 +32,12 @@ class _LoginPageState extends State<LoginPage> {
         var data = jsonDecode(response.body);
         String userName = data['user']['name'] ?? 'Unknown User';
         print(userName);
-        String userId = data['user']['_id'] ?? 'Unknown id';
-        print("*******USERID  $userId");
+        String userId = data['user']['_id'];
+        print("*******This is USERID  $userId");
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('userName', userName);
-        socket = IO.io('ws://192.168.2.189:3001', IO.OptionBuilder()
+        await prefs.setString('userId', userId);
+        socket = IO.io('ws://192.168.43.100:3001', IO.OptionBuilder()
             .setTransports(['websocket'])
             .build());
         socket.connect();
@@ -44,10 +45,15 @@ class _LoginPageState extends State<LoginPage> {
           print('Connected to the server');
         });
         print("Loggedd innnnn");
-        Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => RoomListScreen(currentUserId: userId, currentUserName: userName,))
-        );
+        if(userId.isNotEmpty){
+          Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => RoomListScreen(currentUserId: userId, currentUserName: userName,))
+          );
+        }else{
+          print("User Id is empty******");
+        }
+
       } else {
         print('Failed to log in: ${response.body}');
       }
